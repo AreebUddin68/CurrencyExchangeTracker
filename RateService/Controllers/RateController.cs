@@ -127,20 +127,20 @@ public class RateController : ControllerBase
     // GET /api/rates/alerts
     [HttpGet("alerts")]
     [Authorize(Roles = "PremiumUser,Admin")]
-    public IActionResult GetMyAlerts()
+    public async Task<IActionResult> GetMyAlerts()
     {
         var userId = int.Parse(User.FindFirst("userId")!.Value);
-        var alerts = _rateService.GetAlertsForUser(userId);
+        var alerts = await _rateService.GetAlertsForUserAsync(userId);
         return Ok(alerts);
     }
 
     // DELETE /api/rates/alerts/{alertId}
     [HttpDelete("alerts/{alertId}")]
     [Authorize(Roles = "PremiumUser,Admin")]
-    public IActionResult DeleteAlert(Guid alertId)
+    public async Task<IActionResult> DeleteAlert(Guid alertId)
     {
         var userId = int.Parse(User.FindFirst("userId")!.Value);
-        var removed = _rateService.DeleteAlert(userId, alertId);
+        var removed = await _rateService.DeleteAlertAsync(userId, alertId);
         if (!removed)
             return NotFound(new { message = "Alert not found." });
 
@@ -164,9 +164,9 @@ public class RateController : ControllerBase
     // PUT /api/rates/alerts/threshold
     [HttpPut("alerts/threshold")]
     [Authorize(Roles = "Admin")]
-    public IActionResult UpdateAlertThreshold([FromBody] UpdateThresholdRequest req)
+    public async Task<IActionResult> UpdateAlertThreshold([FromBody] UpdateThresholdRequest req)
     {
-        var applied = _rateService.UpdateAlertThreshold(req.MaxAlertsPerUser);
+        var applied = await _rateService.UpdateAlertThresholdAsync(req.MaxAlertsPerUser);
         return Ok(new
         {
             message = "Alert threshold updated.",
@@ -177,11 +177,11 @@ public class RateController : ControllerBase
     // GET /api/rates/alerts/threshold
     [HttpGet("alerts/threshold")]
     [Authorize(Roles = "Admin")]
-    public IActionResult GetAlertThreshold()
+    public async Task<IActionResult> GetAlertThreshold()
     {
         return Ok(new
         {
-            maxAlertsPerUser = _rateService.GetAlertThreshold()
+            maxAlertsPerUser = await _rateService.GetAlertThresholdAsync()
         });
     }
 }

@@ -21,5 +21,9 @@ public class ConvertDbContext : DbContext
 
         modelBuilder.Entity<ConversionHistory>()
             .HasIndex(c => new { c.UserId, c.FromCurrency, c.ToCurrency });
+
+        modelBuilder.Entity<ConversionHistory>()
+            .Property(c => c.OriginalAmount)
+            .HasPrecision(18, 4);
     }
 }

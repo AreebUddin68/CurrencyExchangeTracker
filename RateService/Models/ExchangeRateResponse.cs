@@ -55,3 +55,9 @@ public class RateAlert
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? TriggeredAt { get; set; }
 }
+
+public class AlertSystemSetting
+{
+    public int Id { get; set; }
+    public int MaxAlertsPerUser { get; set; } = 10;
+}

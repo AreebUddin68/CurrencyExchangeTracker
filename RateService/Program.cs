@@ -1,6 +1,8 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using RateService.Data;
 using RateService.Services;
 using Shared.Middleware;
 using Serilog;
@@ -15,6 +17,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
 // ── Services ───────────────────────────────────────────────
+
+// SQL Server for persisted rate alerts and settings
+builder.Services.AddDbContext<RateDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // HttpClient for calling ExchangeRate-API
 builder.Services.AddHttpClient<ExchangeRateService>();
@@ -48,7 +54,8 @@ builder.Services.AddOpenTelemetry()
         .AddConsoleExporter());
 
 // Health check
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")!);
 
 builder.Services.AddCors(options =>
 {
@@ -71,5 +78,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<RateDbContext>();
+    db.Database.Migrate();
+}
 
 app.Run();

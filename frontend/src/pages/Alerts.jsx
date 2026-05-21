@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import {
   createRateAlert,
@@ -17,6 +18,7 @@ export default function Alerts() {
   const [form, setForm] = useState({ fromCurrency: 'USD', toCurrency: 'PKR', targetRate: '', direction: 'Above' });
   const [triggered, setTriggered] = useState([]);
   const [message, setMessage] = useState('');
+  const intervalRef = useRef(null);
 
   const loadAlerts = async () => {
     try {
@@ -37,9 +39,35 @@ export default function Alerts() {
     }
   };
 
+  const handleCheck = async (silent = false) => {
+    try {
+      const res = await checkRateAlerts();
+      const triggeredAlerts = res.data?.alerts || [];
+      setTriggered(triggeredAlerts);
+
+      if (triggeredAlerts.length > 0) {
+        triggeredAlerts.forEach(a => toast.success(a.message));
+        await loadAlerts();
+      } else if (!silent) {
+        toast('No alerts triggered right now.');
+      }
+    } catch (err) {
+      if (!silent)
+        toast.error(err.response?.data?.message || 'Failed to check alert triggers.');
+    }
+  };
+
   useEffect(() => {
     loadAlerts();
     loadThreshold();
+
+    intervalRef.current = setInterval(() => {
+      handleCheck(true);
+    }, 15000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   const handleCreate = async (e) => {
@@ -54,26 +82,34 @@ export default function Alerts() {
       });
       setForm({ ...form, targetRate: '' });
       setMessage('Alert created.');
+      toast.success('Rate alert created.');
       loadAlerts();
     } catch (err) {
-      setMessage(err.response?.data?.message || 'Failed to create alert.');
+      const msg = err.response?.data?.message || 'Failed to create alert.';
+      setMessage(msg);
+      toast.error(msg);
     }
   };
 
   const handleDelete = async (id) => {
-    await deleteRateAlert(id);
-    loadAlerts();
-  };
-
-  const handleCheck = async () => {
-    const res = await checkRateAlerts();
-    setTriggered(res.data?.alerts || []);
+    try {
+      await deleteRateAlert(id);
+      toast.success('Alert deleted.');
+      loadAlerts();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete alert.');
+    }
   };
 
   const handleThresholdUpdate = async () => {
-    await updateAlertThreshold(parseInt(threshold, 10) || 1);
-    loadThreshold();
-    setMessage('Threshold updated.');
+    try {
+      await updateAlertThreshold(parseInt(threshold, 10) || 1);
+      loadThreshold();
+      setMessage('Threshold updated.');
+      toast.success('Threshold updated.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update threshold.');
+    }
   };
 
   return (
@@ -100,8 +136,12 @@ export default function Alerts() {
         <div className="card" style={{ padding: '20px', marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <h3>My Alerts ({alerts.length})</h3>
-            <button className="btn-primary" onClick={handleCheck}>Check Triggers</button>
+            <button className="btn-primary" onClick={() => handleCheck(false)}>Check Triggers</button>
           </div>
+
+          <p style={{ color: 'var(--muted)', marginBottom: '10px' }}>
+            Auto-check runs every 15 seconds and shows instant notifications when a threshold is crossed.
+          </p>
 
           {alerts.length === 0 ? (
             <p style={{ color: 'var(--muted)' }}>No alerts yet.</p>

@@ -1,5 +1,6 @@
-﻿using RateService.Models;
-using System.Collections.Concurrent;
+﻿using Microsoft.EntityFrameworkCore;
+using RateService.Data;
+using RateService.Models;
 
 namespace RateService.Services;
 
@@ -7,19 +8,18 @@ public class ExchangeRateService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _config;
+    private readonly RateDbContext _db;
     private readonly ILogger<ExchangeRateService> _logger;
 
     private static readonly Dictionary<string, (DateTime FetchedAt, RateResult Data)> _cache = new();
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
-    private static readonly ConcurrentDictionary<Guid, RateAlert> _alerts = new();
-    private static int _maxAlertsPerUser = 10;
-
     public ExchangeRateService(HttpClient httpClient, IConfiguration config,
-        ILogger<ExchangeRateService> logger)
+        RateDbContext db, ILogger<ExchangeRateService> logger)
     {
         _httpClient = httpClient;
         _config = config;
+        _db = db;
         _logger = logger;
     }
 
@@ -105,9 +105,13 @@ public class ExchangeRateService
     public async Task<(bool success, string message, RateAlert? alert)> CreateAlertAsync(
         int userId, string username, CreateRateAlertRequest req)
     {
-        var userAlertCount = _alerts.Values.Count(a => a.UserId == userId && !a.IsTriggered);
-        if (userAlertCount >= _maxAlertsPerUser)
-            return (false, $"Maximum {_maxAlertsPerUser} active alerts allowed per user.", null);
+        var settings = await GetOrCreateAlertSettingsAsync();
+
+        var userAlertCount = await _db.RateAlerts
+            .CountAsync(a => a.UserId == userId && !a.IsTriggered);
+
+        if (userAlertCount >= settings.MaxAlertsPerUser)
+            return (false, $"Maximum {settings.MaxAlertsPerUser} active alerts allowed per user.", null);
 
         var from = req.FromCurrency.ToUpper();
         var to = req.ToCurrency.ToUpper();
@@ -126,39 +130,52 @@ public class ExchangeRateService
             Direction = req.Direction.Equals("Below", StringComparison.OrdinalIgnoreCase) ? "Below" : "Above"
         };
 
-        _alerts[alert.Id] = alert;
+        _db.RateAlerts.Add(alert);
+        await _db.SaveChangesAsync();
+
         return (true, "Alert created.", alert);
     }
 
-    public List<RateAlert> GetAlertsForUser(int userId)
+    public async Task<List<RateAlert>> GetAlertsForUserAsync(int userId)
     {
-        return _alerts.Values
+        return await _db.RateAlerts
             .Where(a => a.UserId == userId)
             .OrderByDescending(a => a.CreatedAt)
-            .ToList();
+            .ToListAsync();
     }
 
-    public bool DeleteAlert(int userId, Guid alertId)
+    public async Task<bool> DeleteAlertAsync(int userId, Guid alertId)
     {
-        if (_alerts.TryGetValue(alertId, out var alert) && alert.UserId == userId)
-            return _alerts.TryRemove(alertId, out _);
+        var alert = await _db.RateAlerts
+            .FirstOrDefaultAsync(a => a.Id == alertId && a.UserId == userId);
 
-        return false;
+        if (alert == null)
+            return false;
+
+        _db.RateAlerts.Remove(alert);
+        await _db.SaveChangesAsync();
+        return true;
     }
 
-    public int UpdateAlertThreshold(int maxAlertsPerUser)
+    public async Task<int> UpdateAlertThresholdAsync(int maxAlertsPerUser)
     {
-        _maxAlertsPerUser = Math.Max(1, maxAlertsPerUser);
-        return _maxAlertsPerUser;
+        var settings = await GetOrCreateAlertSettingsAsync();
+        settings.MaxAlertsPerUser = Math.Max(1, maxAlertsPerUser);
+        await _db.SaveChangesAsync();
+        return settings.MaxAlertsPerUser;
     }
 
-    public int GetAlertThreshold() => _maxAlertsPerUser;
+    public async Task<int> GetAlertThresholdAsync()
+    {
+        var settings = await GetOrCreateAlertSettingsAsync();
+        return settings.MaxAlertsPerUser;
+    }
 
     public async Task<List<object>> CheckAlertsAsync(int userId)
     {
-        var userAlerts = _alerts.Values
+        var userAlerts = await _db.RateAlerts
             .Where(a => a.UserId == userId && !a.IsTriggered)
-            .ToList();
+            .ToListAsync();
 
         var checks = userAlerts.Select(async alert =>
         {
@@ -190,6 +207,23 @@ public class ExchangeRateService
         }).ToList();
 
         var results = await Task.WhenAll(checks);
-        return results.Where(r => r != null).ToList()!;
+        var triggered = results.Where(r => r != null).ToList()!;
+
+        if (triggered.Count > 0)
+            await _db.SaveChangesAsync();
+
+        return triggered;
+    }
+
+    private async Task<AlertSystemSetting> GetOrCreateAlertSettingsAsync()
+    {
+        var settings = await _db.AlertSystemSettings.FirstOrDefaultAsync(s => s.Id == 1);
+        if (settings != null)
+            return settings;
+
+        settings = new AlertSystemSetting { Id = 1, MaxAlertsPerUser = 10 };
+        _db.AlertSystemSettings.Add(settings);
+        await _db.SaveChangesAsync();
+        return settings;
     }
 }

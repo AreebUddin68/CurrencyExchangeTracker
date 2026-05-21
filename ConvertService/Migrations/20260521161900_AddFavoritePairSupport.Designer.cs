@@ -4,6 +4,7 @@ using ConvertService.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConvertService.Migrations
 {
     [DbContext(typeof(ConvertDbContext))]
-    partial class ConvertDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260521161900_AddFavoritePairSupport")]
+    partial class AddFavoritePairSupport
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -53,8 +56,7 @@ namespace ConvertService.Migrations
                         .HasColumnType("bit");
 
                     b.Property<decimal>("OriginalAmount")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("ToCurrency")
                         .IsRequired()
