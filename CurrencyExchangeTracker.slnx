@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="ApiGateway/ApiGateway.csproj" />
+  <Project Path="AuditService/AuditService.csproj" />
+  <Project Path="AuthService/AuthService.csproj" />
+  <Project Path="ConvertService/ConvertService.csproj" />
+  <Project Path="RateService/RateService.csproj" />
+  <Project Path="Shared/Shared.csproj" />
+</Solution>
