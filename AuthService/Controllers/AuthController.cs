@@ -109,4 +109,31 @@ public class AuthController : ControllerBase
         var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
         return Ok(new { username, role });
     }
+
+    // PUT /api/auth/users/{id}/role -- Admin only
+    [HttpPut("users/{id:int}/role")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdateUserRole(int id, [FromBody] UpdateUserRoleRequest req)
+    {
+        var allowedRoles = new[] { "User", "PremiumUser", "Admin" };
+        if (!allowedRoles.Contains(req.Role, StringComparer.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Invalid role." });
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
+        if (user == null)
+            return NotFound(new { message = "User not found." });
+
+        user.Role = allowedRoles.First(r => string.Equals(r, req.Role, StringComparison.OrdinalIgnoreCase));
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("Admin updated role for user {Username} to {Role}", user.Username, user.Role);
+
+        return Ok(new
+        {
+            message = "User role updated successfully.",
+            userId = user.Id,
+            username = user.Username,
+            role = user.Role
+        });
+    }
 }

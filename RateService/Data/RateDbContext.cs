@@ -30,5 +30,9 @@ public class RateDbContext : DbContext
 
         modelBuilder.Entity<AlertSystemSetting>()
             .HasKey(s => s.Id);
+
+        modelBuilder.Entity<AlertSystemSetting>()
+            .Property(s => s.Id)
+            .ValueGeneratedNever();
     }
 }

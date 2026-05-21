@@ -207,7 +207,7 @@ public class ExchangeRateService
         }).ToList();
 
         var results = await Task.WhenAll(checks);
-        var triggered = results.Where(r => r != null).ToList()!;
+        var triggered = results.Where(r => r is not null).Cast<object>().ToList();
 
         if (triggered.Count > 0)
             await _db.SaveChangesAsync();
@@ -217,11 +217,11 @@ public class ExchangeRateService
 
     private async Task<AlertSystemSetting> GetOrCreateAlertSettingsAsync()
     {
-        var settings = await _db.AlertSystemSettings.FirstOrDefaultAsync(s => s.Id == 1);
+        var settings = await _db.AlertSystemSettings.FirstOrDefaultAsync();
         if (settings != null)
             return settings;
 
-        settings = new AlertSystemSetting { Id = 1, MaxAlertsPerUser = 10 };
+        settings = new AlertSystemSetting { MaxAlertsPerUser = 10 };
         _db.AlertSystemSettings.Add(settings);
         await _db.SaveChangesAsync();
         return settings;

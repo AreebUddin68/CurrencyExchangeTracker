@@ -50,6 +50,8 @@ Services and ports:
 - CSV export of history (`PremiumUser`, `Admin`)
 - rate alerts with threshold direction (`Above` / `Below`)
 - admin-configurable max alerts-per-user
+- admin role management for users (`User`, `PremiumUser`, `Admin`)
+- role editing directly from the admin panel
 
 ## Tech Stack
 

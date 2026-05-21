@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { getMonitorSummary, getRecentLogs, getErrors, getTrace } from '../api/audit';
-import { getAllUsers } from '../api/auth';
+import { getAllUsers, updateUserRole } from '../api/auth';
 import { getAllHistory } from '../api/convert';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -24,6 +25,7 @@ export default function AdminPanel() {
   const [traceId,     setTraceId]     = useState('');
   const [traceResult, setTraceResult] = useState(null);
   const [loading,     setLoading]     = useState(false);
+  const [roleBusyId,  setRoleBusyId]   = useState(null);
 
   useEffect(() => { loadTab(tab); }, [tab]);
 
@@ -46,6 +48,20 @@ export default function AdminPanel() {
       setTraceResult(res.data);
     } catch {
       setTraceResult({ error: 'No logs found for this Correlation ID' });
+    }
+  };
+
+  const handleRoleChange = async (userId, nextRole) => {
+    try {
+      setRoleBusyId(userId);
+      await updateUserRole(userId, nextRole);
+      toast.success(`Role updated to ${nextRole}`);
+      const res = await getAllUsers();
+      setUsers(res.data);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update role');
+    } finally {
+      setRoleBusyId(null);
     }
   };
 
@@ -219,9 +235,23 @@ export default function AdminPanel() {
                         <td style={{ fontWeight: '700', fontFamily: 'Playfair Display,serif', color: 'var(--deep)', fontSize: '16px' }}>{u.username}</td>
                         <td style={{ color: 'var(--muted)', fontSize: '13px' }}>{u.email}</td>
                         <td>
-                          <span className={`badge ${u.role === 'Admin' ? 'badge-deep' : u.role === 'PremiumUser' ? 'badge-warm' : 'badge-sage'}`}>
-                            {u.role}
-                          </span>
+                          <select
+                            value={u.role}
+                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                            disabled={roleBusyId === u.id}
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: '2px',
+                              border: '1px solid var(--border)',
+                              background: 'var(--cream2)',
+                              fontFamily: 'Playfair Display,serif',
+                              fontSize: '12px'
+                            }}
+                          >
+                            <option value="User">User</option>
+                            <option value="PremiumUser">PremiumUser</option>
+                            <option value="Admin">Admin</option>
+                          </select>
                         </td>
                         <td style={{ color: 'var(--muted)', fontSize: '13px' }}>{new Date(u.createdAt).toLocaleDateString()}</td>
                       </tr>

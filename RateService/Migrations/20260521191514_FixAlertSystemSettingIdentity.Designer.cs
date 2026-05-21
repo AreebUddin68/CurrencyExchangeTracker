@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RateService.Data;
 
@@ -11,9 +12,11 @@ using RateService.Data;
 namespace RateService.Migrations
 {
     [DbContext(typeof(RateDbContext))]
-    partial class RateDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260521191514_FixAlertSystemSettingIdentity")]
+    partial class FixAlertSystemSettingIdentity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -25,6 +28,7 @@ namespace RateService.Migrations
             modelBuilder.Entity("RateService.Models.AlertSystemSetting", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedNever()
                         .HasColumnType("int");
 
                     b.Property<int>("MaxAlertsPerUser")
